@@ -1,7 +1,8 @@
-import { Todo } from "../models/todo";
-import { makeAutoObservable } from "mobx";
-import { ChangeEvent } from "react";
-import { TodoStatus } from "../models/todo-status";
+import {Todo} from "../models/todo";
+import {makeAutoObservable} from "mobx";
+import {ChangeEvent} from "react";
+import {TodoStatus} from "../models/todo-status";
+import {io} from "socket.io-client"
 
 const removeTodo = (todos: Todo[], id: string): Todo[] =>
   todos.filter((todo) => todo.id !== id);
@@ -16,12 +17,16 @@ export interface TodoUpdateRequest {
 
 class TodoStore {
   private todoApiUrl = process.env.REACT_APP_API_HOSTNAME + "/todo";
+  private socket = io("http://localhost:3000");
 
   todos: Todo[] = [];
   newTodo: string = "";
 
   constructor() {
     makeAutoObservable(this);
+    this.socket.on('loadTodos', (todos) => {
+      this.todos = todos;
+    })
   }
 
   changeNewTodo(event: ChangeEvent<HTMLInputElement>) {
@@ -35,40 +40,20 @@ class TodoStore {
   }
 
   create(title: string) {
-    fetch(this.todoApiUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        title,
-      }),
-    })
-      .then((resp) => resp.json())
-      .then((todo: Todo) => this.todos.push(todo))
-      .then(() => (this.newTodo = ""));
+    this.socket.emit('createTodo', {title})
+    this.newTodo = ''
   }
 
   update(id: string, updateRequest: TodoUpdateRequest) {
-    fetch(`${this.todoApiUrl}/${id}`, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(updateRequest),
-    })
-      .then((resp) => resp.json())
-      .then((todo: Todo) => (this.todos = replaceTodo(this.todos, id, todo)));
+    this.socket.emit('updateTodo', {id, updateRequest})
   }
 
   checkTodo(id: string, status: TodoStatus) {
-    this.update(id, { status });
+    this.update(id, {status});
   }
 
   delete(id: string) {
-    fetch(`${this.todoApiUrl}/${id}`, {
-      method: "DELETE",
-    }).then(() => (this.todos = removeTodo(this.todos, id)));
+    this.socket.emit('deleteTodo', {id})
   }
 }
 
