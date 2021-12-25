@@ -51,7 +51,7 @@ class TodoStore {
 
   update(id: string, updateRequest: TodoUpdateRequest) {
     fetch(`${this.todoApiUrl}/${id}`, {
-      method: "PUT",
+      method: "PATCH",
       headers: {
         "Content-Type": "application/json",
       },
